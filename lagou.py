@@ -1,57 +1,106 @@
+# encoding=utf8
 import requests
 import json
 import sys
-
+import re
+import urllib
 reload(sys)
 sys.setdefaultencoding("gbk")
 
 
+class Positon():
+
+	def __init__(self,resultsItem):
+		self.positionName = resultsItem["positionName"]
+		self.businessZones = resultsItem["businessZones"]
+		self.companyId = resultsItem["companyId"]
+		self.companyLabelList = resultsItem["companyLabelList"]
+		self.companyName = resultsItem["companyName"]
+		self.companySize = resultsItem["companySize"]
+		self.district = resultsItem["district"]
+		self.education = resultsItem["education"]
+		self.financeStage = resultsItem["financeStage"]
+		self.flowScore = resultsItem["flowScore"]
+		self.formatCreateTime = resultsItem["formatCreateTime"]
+		self.hrScore = resultsItem["hrScore"]
+		self.industryField = resultsItem["industryField"]
+		self.jobNature = resultsItem["jobNature"]
+		self.positionAdvantage = resultsItem["positionAdvantage"]
+		self.positionId = resultsItem["positionId"]
+		self.positionType = resultsItem["positionType"]
+		self.pvScore = resultsItem["pvScore"]
+		self.relScore = resultsItem["relScore"]
+		self.salary = resultsItem["salary"]
+		self.score = resultsItem["score"]
+		self.workYear = resultsItem["workYear"]
+
+	@property
+	def detail(self):
+		self.position_url="http://www.lagou.com/jobs/%s.html"%self.positionId
+		respon = requests.get(self.position_url)
+		detail_data = re.findall('<h3 class="description(.*?)</dd>',respon.text,re.S)[0]
+		return detail_data
+
+
+	def __repr__(self):
+		return "%s:%s\n%s"%(self.companyName,self.positionName,self.salary)
+
+
+
+class Page():
+
+	def __init__(self,data):
+		self.pageNo = data["content"]["pageNo"]
+		self.result = data["content"]["positionResult"]["result"]
+		self.positions = [ Positon(item)  for item in self.result]
+
+
+	@property
+	def have_next(self):
+		if self.result == []:
+			return False	
+		else:
+			return True
+
 class Lagou():
 
-	def __init__(self,city="shanghai",keyword="python"):
-		# self.job_index='''http://www.lagou.com/jobs/positionAjax.json?px=default&city=%s&needAddtionalResult=false'''%city
-		self.job_index='''http://www.lagou.com/jobs/positionAjax.json?px=default&city=%E4%B8%8A%E6%B5%B7&needAddtionalResult=false'''
-		self.job_detail="http://www.lagou.com/jobs/1517466.html"
-		self.post_data={
+	def __init__(self,city=u"上海",keyword="python"):
+		city=urllib.urlencode({"city":city.encode("utf8")})
+		self.job_index_url='''http://www.lagou.com/jobs/positionAjax.json?px=default&%s&needAddtionalResult=false'''%city
+		self.pn = 1
+		self.post_data = {
 			'first':False,
-			'pn':0,
+			'pn':self.pn,
 			'kd':keyword,
 			}
 
-	def get_index(self):
-		respon=requests.post(self.job_index,self.post_data)
+	def get_page(self):
+		respon = requests.post(self.job_index_url,self.post_data)
 		if respon.ok is True:
-			return json.loads(respon.text)["content"]["positionResult"]
+			page_data=json.loads(respon.text)
+			return Page(page_data)
+
+
+	
+	def next(self):
+		page=self.get_page()
+		if page.have_next:
+			print self.post_data["pn"]
+			for i in page.positions:
+				print i
+			self.post_data["pn"] += 1
+			# return page
 		else:
-			raise "error"
+			raise StopIteration				
 
-
-def main():
-	lagou=Lagou()
-	page_No=1
-	while 1:
-		lagou.post_data["pn"]=page_No
-		data=lagou.get_index()
-		item_No=1
-		for item in data["result"]:
-			print "page_No:%d-item No:%d\n\n"%(page_No,item_No)
-			item_No+=1
-			print item["companyId"]
-			print item["positionName"]
-			print item["positionType"]
-			print item["workYear"]
-			print item["education"]
-			print item["salary"]
-			print item["companyName"]
-			print item["district"]
-			print "\n\n\n\n"
-		print "page: %d \n\n"%page_No
-		page_No+=1
+	def __iter__(self):
+		return self
 
 
 
 
 if __name__ == '__main__':
-	main()
-
+	lagou=Lagou(u"广州","python")
+	for i in lagou:
+		print i
 
