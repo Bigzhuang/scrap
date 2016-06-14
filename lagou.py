@@ -10,97 +10,72 @@ sys.setdefaultencoding("gbk")
 
 class Positon():
 
-	def __init__(self,resultsItem):
-		self.positionName = resultsItem["positionName"]
-		self.businessZones = resultsItem["businessZones"]
-		self.companyId = resultsItem["companyId"]
-		self.companyLabelList = resultsItem["companyLabelList"]
-		self.companyName = resultsItem["companyName"]
-		self.companySize = resultsItem["companySize"]
-		self.district = resultsItem["district"]
-		self.education = resultsItem["education"]
-		self.financeStage = resultsItem["financeStage"]
-		self.flowScore = resultsItem["flowScore"]
-		self.formatCreateTime = resultsItem["formatCreateTime"]
-		self.hrScore = resultsItem["hrScore"]
-		self.industryField = resultsItem["industryField"]
-		self.jobNature = resultsItem["jobNature"]
-		self.positionAdvantage = resultsItem["positionAdvantage"]
-		self.positionId = resultsItem["positionId"]
-		self.positionType = resultsItem["positionType"]
-		self.pvScore = resultsItem["pvScore"]
-		self.relScore = resultsItem["relScore"]
-		self.salary = resultsItem["salary"]
-		self.score = resultsItem["score"]
-		self.workYear = resultsItem["workYear"]
+    def __init__(self, resultsItem):
+        self.__dict__.update(resultsItem)
 
-	@property
-	def detail(self):
-		self.position_url="http://www.lagou.com/jobs/%s.html"%self.positionId
-		respon = requests.get(self.position_url)
-		detail_data = re.findall('<h3 class="description(.*?)</dd>',respon.text,re.S)[0]
-		return detail_data
+    @property
+    def detail(self):
+        self.position_url = "http://www.lagou.com/jobs/%s.html" % self.positionId
+        respon = requests.get(self.position_url)
+        detail_data = re.findall(
+            '<h3 class="description(.*?)</dd>',
+            respon.text,
+            re.S)[0]
+        return detail_data
 
-
-	def __repr__(self):
-		return "%s:%s\n%s"%(self.companyName,self.positionName,self.salary)
-
+    def __repr__(self):
+        return "%s:%s\n%s" % (self.companyName, self.positionName, self.salary)
 
 
 class Page():
 
-	def __init__(self,data):
-		self.pageNo = data["content"]["pageNo"]
-		self.result = data["content"]["positionResult"]["result"]
-		self.positions = [ Positon(item)  for item in self.result]
+    def __init__(self, data):
+        self.pageNo = data["content"]["pageNo"]
+        self.result = data["content"]["positionResult"]["result"]
+        self.positions = [Positon(item) for item in self.result]
 
+    @property
+    def have_next(self):
+        if self.result == []:
+            return False
+        else:
+            return True
 
-	@property
-	def have_next(self):
-		if self.result == []:
-			return False	
-		else:
-			return True
 
 class Lagou():
 
-	def __init__(self,city=u"上海",keyword="python"):
-		city=urllib.urlencode({"city":city.encode("utf8")})
-		self.job_index_url='''http://www.lagou.com/jobs/positionAjax.json?px=default&%s&needAddtionalResult=false'''%city
-		self.pn = 1
-		self.post_data = {
-			'first':False,
-			'pn':self.pn,
-			'kd':keyword,
-			}
+    def __init__(self, city=u"上海", keyword="python"):
+        city = urllib.urlencode({"city": city.encode("utf8")})
+        self.job_index_url = '''http://www.lagou.com/jobs/positionAjax.json?px=default&%s&needAddtionalResult=false''' % city
+        self.pn = 1
+        self.post_data = {
+            'first': False,
+            'pn': self.pn,
+            'kd': keyword,
+        }
 
-	def get_page(self):
-		respon = requests.post(self.job_index_url,self.post_data)
-		if respon.ok is True:
-			page_data=json.loads(respon.text)
-			return Page(page_data)
+    def get_page(self):
+        respon = requests.post(self.job_index_url, self.post_data)
+        if respon.ok is True:
+            page_data = json.loads(respon.text)
+            return Page(page_data)
 
+    def next(self):
+        page = self.get_page()
+        if page.have_next:
+            print self.post_data["pn"]
+            for i in page.positions:
+                print i
+            self.post_data["pn"] += 1
+            # return page
+        else:
+            raise StopIteration
 
-	
-	def next(self):
-		page=self.get_page()
-		if page.have_next:
-			print self.post_data["pn"]
-			for i in page.positions:
-				print i
-			self.post_data["pn"] += 1
-			# return page
-		else:
-			raise StopIteration				
-
-	def __iter__(self):
-		return self
-
-
+    def __iter__(self):
+        return self
 
 
 if __name__ == '__main__':
-	lagou=Lagou(u"广州","python")
-	for i in lagou:
-		print i
-
+    lagou = Lagou(u"广州", "python")
+    for i in lagou:
+        print i
